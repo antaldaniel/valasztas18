@@ -127,6 +127,9 @@ osszetetelplot1 <- ggplot ( data = kistelepulesek,
     subtitle = "Összefüggés a szavazatszámláló bizottságok összetétele és a pártok szavazatai között")
 
 plot(osszetetelplot1)
+ggsave ("plots/osszetetelplot1.jpg", 
+        plot = osszetetelplot1, 
+        device = "jpeg" )
 ```
 
 Bár lehetne statisztikai teszteket is készíteni erre, számomra nem triviális az összefüggés. Ha valami furcsa, az a Jobbik szavazatainak az alakulása. 
@@ -156,6 +159,9 @@ osszetetelplot2 <- ggplot ( data = kistelepulesek,
     subtitle = "Összefüggés a szavazatszámláló bizottságok összetétele és a pártok szavazatai között")
 
 plot (osszetetelplot2)
+ggsave ("plots/osszetetelplot2.jpg", 
+        plot = osszetetelplot2, 
+        device = "jpeg" )
 ```
 
 Úgy néz ki, hogy ahol sokan érvénytelenül szavazatak, ott csökkent a Jobbik szavazatok száma, de ez elég függetlennek tűnik attól, hogy volt-e jelen ellenzéki (akár Jobbikos) bizottsági tag. Én inkább arra gyanakodnék, hogy a nagyon elszigetelt, tanulatlan lakosságú településeken se a választók, se a bizottsági tagok nem igazán jól végezték a dolgukat. 
