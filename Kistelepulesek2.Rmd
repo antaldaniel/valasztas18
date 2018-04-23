@@ -124,4 +124,24 @@ plot(kistelep.tree.pruned2)
 text(kistelep.tree.pruned2, cex = 0.8, use.n = TRUE, xpd = TRUE)
 ```
 
+Végül egy érdekes vizualizáció a szavazatok megoszlásáról. A Fidesz ott ért el nagyon jó eredményt, értelemszerűen, ahol a Jobbik, az MSZP és az LMP gyengén szerepelt. Vagyis az ábra leginkább azt mutatja, hogy melyik pártoknak volt esélye valamennyire megszorongatni a Fideszt. 
+
+```{r kistelepulesek3}
+kistelepulesek <- szavstat %>%
+  filter ( n == 1 ) 
+
+require(rpart)
+require(rpart.plot)
+set.seed(2018)  ##bármilyen szám rögzítheti a random útvonalgenerálás kezdetét
+##2018-ról indítva biztosan azonos lesz az ábra.
+
+kistelep.tree3 <- rpart(fidesz_rate ~ jobbik_rate +
+                          mszp_rate + lmp_rate + momentum_rate + mkkp_rate +
+                          egyutt_rate + ervenytelen_rate , data = kistelepulesek,
+                        control = rpart.control(cp = 0.0001, minsplit = 500))
+bestcp3 <- kistelep.tree3$cptable[which.min(kistelep.tree3$cptable[,"xerror"]),"CP"]
+kistelep.tree.pruned3 <- prune(kistelep.tree3, cp = bestcp3)
+plot(kistelep.tree.pruned3)
+text(kistelep.tree.pruned3, cex = 0.8, use.n = TRUE, xpd = TRUE)
+```
 A következő lépés az lesz, hogy a nagyob településekre kiterjesztjük a modellt.
