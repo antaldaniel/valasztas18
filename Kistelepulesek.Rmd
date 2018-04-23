@@ -108,6 +108,8 @@ Sajnos a szavazóköri biztosok táblájában nincsen OEVK kód, és a települ�
 
 Az alábbi ábra a kistelepülési pártlistás szavazatokat annak összefüggésében mutatja be, hogy volt-e a településen ellenzéki szavazatszámláló, vagy sem. Az ellenzéki szavazatszámláló az, akit a Jobbik, az MSZP-PM, az LMP, a DK, a Momentum, az MKKP vagy az Együtt delegált, a kamupártok jelöltjeivel, meg a hivatalból kijelölt (a kormánytól nem független) számlálóktól eltekintettem. Van néhány körzet, ahol nem volt Fideszes számláló sem.
 
+Kistelepülésnek azokat a településeket számítottam, ahol összesen egyetlen darab választókör volt, egyetlen bizottsággal. Ezekben a településekben a Fidesz az országos arányt lényegesen meghaladó, 60% körüli eredményt ért el, többnyire ellenzéki szavazatszámlálók nélkül. Ha valahol csalni lehetett, itt lehetett a legkönnyebben.
+
 ```{r ossztetel1}
 osszetetelplot1 <- ggplot ( data = kistelepulesek, 
          aes ( x = ervenytelen, y = values, color = part, group = is_ellenzek)) +
