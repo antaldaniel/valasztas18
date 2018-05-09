@@ -1,0 +1,601 @@
+---
+title: "Választási részvétel és preferencia a kistelepüléseken"
+author: "Antal Dániel, CFA"
+date: "April 30, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Bevezető
+
+A választási eredmények alapvetően két dologtól függenek: hogy hányan mennek el szavazni a szavazókörökben, és melyik pártot választják. Hiába népszerű egy párt, ha nem mennek el a támogatói szavazni. És hiába magas a részvétel egy adott szavazókörben, ha pont ott nem a vizsgált pártot támogatják az emberek.
+
+A magyar választási előrejelzések legnagyobb problémája a választási részvételre vonatkozó egyedi adatok teljes hiánya (az exit poll hiánya) és emiatt a részvétel előrejelzésének teljes hiánya. 
+
+Az alábbiakban területileg aggregált adatokból, és kizárólag az egy szavazókörös kistelepülések esetében igyekszem megérteni azt, hogy milyen tényezők befolyásolják (de nem feltétlenül jól magyarázzák) a részvételt és a Fidesz támogatottságát.  Értelemszerűen a bemutatott modellek egyúttal a távolmaradást és az ellenzék támogatottságát is mutatják egyidejűleg. 
+
+###A területi aggregáció problémája
+A lineáris regresszió előnye, hogy egyszerűen megalkotható és egyszerűen értelmezhető.  Hátránya, hogy viszonylag szigorú feltételek mellett ad csak megbízható eredményt, amit a területileg aggregált adatok esetében nem áll fenn. 
+A területi aggregáció egyik jellemző problémája az ökológiai tévkövetkeztetés.  Az itt bemutatásra kerülő adatok például azt mutatják, hogy a Fidesz támogatottsága lényegesen magasabb azokon a településeken, ahol magasabb az iskolázatlanabb emberek aránya. 
+
+* Ennek az egyik oka az lehet, hogy az alacsony iskolázottságú emberek nagyobb valószínűséggel adták a Fideszre a voksukat. 
+
+* A másik oka az lehet, hogy az idősebbek nagyobb valószínűséggel szavaztak a Fideszre, és mivel az idősebbek fiatal korukban kevesebb iskolát szereztek, úgy tűnik, hogy az iskolázatlanság magyarázza a Fidesz sikerét.
+
+* De az is lehet, hogy az elöregedő, alacsony átlagos iskolázottságú településeken pont a közepesen és magasan iskolázottak szavaztak egy emberként a Fideszre, és az iskolázatlan szavazók az országos átlagnak megfelelően szavaztak.
+
+Mivel exit poll nem áll rendelkezésünkre, a három hipotézist nem tudjuk külön-külön tesztelni. Arra azonban lehetőségünk van, hogy valamilyen módon kizárjuk az egyik hipotézist, vagy a hipotézisek valószínűségét rangsoroljuk, mivel háromezer település adatai állnak rendelkezésünkre.  Ezek között vannak iskolázottabb, fiatalabb népességű és gyakorlatilag magasan képzett lakosság nélküli települések is.  Például a harmadik hipotézisnek nagyon sok település egyedi adata ellentmond.
+
+A lineáris regresszió problémája, hogy egyértelmű megoldásra törekszik, és lényegében egy hibatagot minimalizálva egy optimális, lineáris egyeneset ad megoldásnak.  Mivel az aggregáció az egyedi adatok változatosságának nagy részét eltünteti, ez az optimalizáció téves lehet (ez az ökológiai tévkövetkeztetés maga.)
+
+##Modellezési stratégiák
+A tévkövetkeztetések egyes eseteit kizárhatjuk úgy, hogy a lineáris regresszió eredményeit összevetjük egy másfajta modell eredményeivel.  Erre különösen alkalmasnak tartom a klasszifikációs, döntési fák módszerét, ami az elemzésbe bevont folytonos változókat (például az érettségizettek arányát) aképpen alakítja kategorikus változókká (pl. kevesebb, mint 41 százalék, 55-61 százalék között), ahogyan az a legjobban képes magyarázni az eredményváltozót. A klasszifikációs fák módszere nem érzékeny a lineáris regressziót elrontó eloszlásbeli problémákra, amelyek egy része éppen az ökológiai tévkövetkeztetés hátterében levő valós ok lehet.  Bár a klasszifikációs módszer is tévedhet, annak kicsi a valószínűsége, hogy a lineáris regresszió és a CART egyszerre, azonos módon téved.
+
+Az ökológiai regressziós modellek arra törekszenek, hogy létrehozzanak egy szimulált, egyedi szavazói mintát. Az ilyen modellek a települések összetételének különbségei (fiatalok, iskolázottak aránya), és más, a priori ismert összefüggések (pl. korábban végzett, egyedi szintű közvéleménykutatások) adatainak nem ellentmondó, de véletlenszerűen generált szavazókon végzik el a regressziót.  Ezek a modellek tehát olyan további feltételezéseket és információkat vonnak be a modell építésébe, ami lineáris regresszió esetén nem adott.  A tévkövetkeztetés valószínűsége így csökkenthető, de nem zárható ki, hiszen a szimulációba általában olyan, a változók eloszlására vonatkozó feltételezéseket kell beépítenünk, amelyek empirikusan nem igazolhatók.
+A tévkövetkeztetés valószínűségét más módon is csökkenthetjük, méghozzá úgy, ha a regressziós modell alkotásakor további hibatagokat is elkezdünk vizsgálni.
+
+1.	Az egyik kézenfekvő módszer a kereszt-validálás, amikor például a 3000 település helyett 10-szer 2700 településen állítjuk fel a modellt, és ezeket összehasonlítjuk egymással. Ha valamilyen véletlen, nem ismert összefüggés téveszti meg a modellünket, az 10 ismételt  regressziós egyenesen gyakran felismerhető.
+
+2.	A másik kézenfekvő módszer a modell validálása, például úgy, hogy a modellt 10-szer lefutattjuk 2250 településen, és 500 település adatait csak a modell ellenőrzésére használunk fel. Ha a 10 darab modellünk tévkövetkeztetést ad, az nagy valószínűséggel a számítások során figyelembe nem vett 500 településre adott becslés során szintén tévedést okoz.
+
+3.	Ha a fenti módszert valamilyen hibatagot minimalizáló, vagy a tévköveztetéseket figyelembe vevő tanuló algoritmussal több ezerszer megismételjük, vagyis a regressziót gépi tanulással fejlesztjük, akkor sok ezerszer következtetést és tévköveteztetést összehasonlítva nagy valószínűséggel ki tudjuk zárni az aggregáció során eltűnt összefüggés figyelemen kívül hagyása miatti hibát.
+
+A regressziós modellek és klasszikfikációs gépi tanulással való fejlesztésének egy általánosan használt algoritmusa a Random Forest.  A Random Forest algoritmussal mind a lineáris regressziós modellek, mind a döntési fák ezrei hasonlítható össze.  Ha lehetőségünk van a Random Forest módszerrel nagyon sok változót kipróbálni, akkor jó eséllyel az idősek magas aránya, az iskolázatlanok magas aránya és esetleg más, ismeretlen tényező interakciója jól kiismerhető. 
+Bár egyik módszer sem csodaszer, a két modellcsalád gépi tanulással való ötvözése általában a tévedések jelentős hányadát kizárja. 
+
+Egy jó modellezési stratégia lehet a Random Forest módszerrel, klasszifikációs és regressziós modellek ezreit összehasonlítani abból a szempontból, hogy mely változók a legalkalmasabbak a Fidesz vagy az ellenzék szavazatarányának magyarázatára a területileg aggregált szinten.  Ezt követően a legjobbnak ítélt változók és a legjobbnak ítélt modell kutatói intuícióval és szaktudással általában tovább fejleszthető. 
+
+
+```{r adatelokeszites_mute, echo=FALSE, message=FALSE, warning=FALSE}
+require(tidyverse)
+tstat_1 <- readxl::read_excel("data-raw/Telepulesadatok_tidy.xls", 
+                            sheet = 1 )
+names (tstat_1)[2]= "telepuleskod"
+names ( tstat_1)[1] = "telep"
+
+tstat_2 <- readxl::read_excel("data-raw/kiegeszito_telepules_adat.xls", 
+                              sheet = 1 )
+names (tstat_2)[2]= "telepuleskod"
+adofizetok <- readxl::read_excel("data-raw/adofizetok_szama.xls", 
+                                 sheet = 1 )
+names (adofizetok)[2]= "telepuleskod"
+
+nepesseg <- readxl::read_excel(
+  "data-raw/allando_nepesseg_18_felett_2014_16_tidy.xls", 
+  sheet = 1 )
+names (nepesseg)[2]= "telepuleskod"
+names (nepesseg)[1] = "telep"
+
+tstat <- left_join (tstat_1, tstat_2, by = c("telep", "telepuleskod", "nepesseg")) %>%
+  left_join( ., adofizetok, by = c("telep", "telepuleskod")) %>%
+  left_join(., nepesseg, by = c("telep", "telepuleskod")) %>%
+  mutate ( adofizeto_rate = adofizetok / nepesseg_18p )
+
+szavazatok_raw <- readxl::read_excel(path = "data-raw/2018-04-08--egyéni és listás voksok szavazókör szerint_stata_fv.xlsx")
+
+szavazatok <- szavazatok_raw %>%
+  select ( megyeid, megye, telepid, telep, oevk, 
+           szavazokor, ervenyes, ervenytelen, orsz_fidesz, 
+           orsz_jobbik, 
+           orsz_lmp, orsz_mszp, orsz_dk,
+           orsz_egyutt, orsz_momentum, orsz_mkkp ) %>%
+  mutate ( fidesz_rate = orsz_fidesz / (ervenyes + ervenytelen), 
+           jobbik_rate = orsz_jobbik   / (ervenyes + ervenytelen),
+           mszp_rate  =  orsz_mszp  /  (ervenyes + ervenytelen),
+           lmp_rate    = orsz_lmp   / (ervenyes + ervenytelen), 
+           dk_rate  =    orsz_dk  / (ervenyes + ervenytelen), 
+           momentum_rate = orsz_momentum / (ervenyes + ervenytelen), 
+           mkkp_rate = orsz_mkkp /  (ervenyes + ervenytelen), 
+           egyutt_rate = orsz_egyutt /  (ervenyes + ervenytelen), 
+           ervenyelen_rate = ervenytelen / (ervenyes + ervenytelen)) %>%
+  mutate ( id = paste0(tolower(telep), "-", 
+                       tolower(as.character(szavazokor))))
+
+szavstat <- left_join ( szavazatok, tstat, by = "telep") %>%
+   add_count(telep)
+szavazatok_raw <- readxl::read_excel(path = "data-raw/2018-04-08--egyéni és listás voksok szavazókör szerint_stata_fv.xlsx")
+
+szavazatok <- szavazatok_raw %>%
+  select ( megyeid, megye, telepid, telep, oevk, 
+           szavazokor, ervenyes, ervenytelen, orsz_fidesz, 
+           orsz_jobbik, 
+           orsz_lmp, orsz_mszp, orsz_dk,
+           orsz_egyutt, orsz_momentum, orsz_mkkp ) %>%
+  mutate ( fidesz_rate = orsz_fidesz / (ervenyes + ervenytelen), 
+           jobbik_rate = orsz_jobbik   / (ervenyes + ervenytelen),
+           mszp_rate  =  orsz_mszp  /  (ervenyes + ervenytelen),
+           lmp_rate    = orsz_lmp   / (ervenyes + ervenytelen), 
+           dk_rate  =    orsz_dk  / (ervenyes + ervenytelen), 
+           momentum_rate = orsz_momentum / (ervenyes + ervenytelen), 
+           mkkp_rate = orsz_mkkp /  (ervenyes + ervenytelen), 
+           egyutt_rate = orsz_egyutt /  (ervenyes + ervenytelen), 
+           ervenytelen_rate = ervenytelen / (ervenyes + ervenytelen)) %>%
+  mutate ( id = paste0(tolower(telep), "-", 
+                       tolower(as.character(szavazokor))))
+
+szavstat <- left_join ( szavazatok, tstat, by = c("telep")) %>% 
+  mutate (reszvetel_est = (ervenyes + ervenytelen)/nepesseg_18p) %>%
+  mutate (jovedelem_fo = jovedelem / nepesseg ) %>%
+  mutate (lakas_fo = lakas / nepesseg) %>%
+   add_count(telep)
+
+saveRDS(szavstat, "data/szavstat.rds")
+write.csv(szavstat, "data/szavstat.csv")
+```
+
+
+## A részvétel modellezése
+
+A részvételt befolyásoló tényezők bemutatására a regressziós döntési fák modelljét használom.  Ez a modell viszonylag jól érthető eredményt ad.  A legfontosabb változóknak
+
+* a településen adót fizetők aránya (ez a munkával rendelkezők aránya) 
+
+* a legfeljebb általános iskolai végzettségűek (iskolázattlanok) aránya
+
+* a település mérete (a választókörúak számával jellemezve) 
+
+bizonyultak.
+
+Úgy gondolom, hogy a G7 által bemutatott hatás a vállalkozások számával amiatt lehet, hogy a kistelepüléseken nincsenek igazi foglalkoztatók, és a munkával rendelkezők jelentős része vállalkozási formában dolgozik. 
+
+
+```{r cart_reszvetel, echo=FALSE, message=FALSE, warning=FALSE}
+require(tidyverse)
+require(caret)
+require(rpart)
+require(tabplot)
+require(rpart.plot)
+
+szavstat <- readRDS("data/szavstat.rds") %>%
+  select ( -megyeid, -telepid, -ervenytelen, -ervenyes, 
+           - starts_with("orsz_"), -id, -telepuleskod, 
+           -odavandorlas, -elvandorlas, -idosek, 
+           -lakas, -jovedelem, -adofizetok, -jovedelem_fo, 
+           -ujszulottek, -lakas_fo, -kabeltv, -kabeltv_rate) %>%
+  mutate ( altisk_rate = altisk_rate/100)
+
+kistelepulesek <- szavstat %>% filter ( n == 1) %>%
+  filter ( complete.cases(.))
+
+training.samples <- kistelepulesek$reszvetel_est %>%
+  createDataPartition(p = 0.8, list = FALSE)
+train.data  <- kistelepulesek[training.samples, ]
+test.data <- kistelepulesek[-training.samples, ]
+
+paste (names(kistelepulesek), collapse = "', '")
+
+variable_reszvetel <- c('megye', 'oevk',
+                    'ervenytelen_rate', 'megye_ido_km', 
+                    'budapest_ido_km', 'megyeszekhely_km', 
+                    'budapest_km', 'megyeszekhely_min',
+                    'budapest_min', 'ujszulott_rate',
+                    'idosek_rate', 'nepesseg', 
+                    'vandorlas_rate', 'altisk_rate',
+                    'nepesseg_18p', 'adofizeto_rate')
+
+
+set.seed(2018)
+model_reszv <- train(
+  as.formula(paste0 ("reszvetel_est ~",  paste(variable_reszvetel, collapse = "+"))), data = train.data, method = "rpart",
+  trControl = trainControl("cv", number = 10),
+  tuneLength = 10
+)
+
+par(xpd = NA) # Avoid clipping the text in some device
+rpart.plot::prp(model_reszv$finalModel,
+                yes.text = "igaz", 
+                no.text  = 'hamis')
+text(model_reszv$finalModel, digits = 3)
+model_reszv$finalModel
+
+```
+
+
+
+###Lineáris regresszió
+
+Az egyszerűbb összevethetőség kedvéért a mások által közölt eredményekkel mindezt lineáris regresszió formájában is bemutatom. 
+
+```{r reszvetel_lm, echo=FALSE, message=FALSE, warning=FALSE}
+kistelepulesek_lm <- kistelepulesek %>%
+  mutate ( adofizeto_0038 = ifelse (adofizeto_rate < 0.3850082, 1, 0)) %>%
+  mutate ( adofizeto_5599 = ifelse (adofizeto_rate > 0.5539019, 1, 0)) %>%
+  mutate ( altisk_rate_0016 = ifelse (altisk_rate < 0.1645, 1, 0)) %>%
+  mutate ( altisk_rate_2699 = ifelse ( altisk_rate > 0.2625, 1, 0)) %>%
+  mutate ( iskolazottsag = (1-altisk_rate))
+
+reszvetel_lm <-lm ( reszvetel_est ~ adofizeto_rate + iskolazottsag + nepesseg_18p,  data = kistelepulesek_lm)
+summary(reszvetel_lm)
+#plot ( reszvetel_lm)
+```
+
+
+###A változók közötti korreláció
+
+Az általam elemzett adatok sajnos nem egyedi (választói) szintű adatok, hanem települési szinten aggregált adatok, amelyek sajnos sok fontos részletet elfednek (de jóval kevésbé, mint a járási vagy megyei adatok.)  A tényleges korreláció mérték az egyedi, szavazói szinten minden bizonnyal alacsonyabb, mint a területileg aggregált adatokban.
+
+```{r corrplot_reszvetel,echo=FALSE, message=FALSE, warning=FALSE }
+library (corrplot)
+cor_reszvetel <- kistelepulesek[ names(kistelepulesek) %in% variable_reszvetel ] %>%
+  select ( -nepesseg, -oevk) %>%
+  select_if (., is.numeric) %>%
+  cor(.) %>%
+  corrplot(.)
+```
+
+
+###Az adófizetők arányának hatása a részvételre a falvakban
+
+A legnagyobb hatása az adófizetők számának van. Minél több embernek van munkája, annál nagyobb arányban vett részt a választáson. 
+
+```{r adofizetok_lm, echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(kistelepulesek,
+       aes(adofizeto_rate,
+           reszvetel_est))+
+  stat_summary(fun.data=mean_cl_normal) + 
+  geom_smooth(method='lm',formula=y~x) +
+  scale_y_continuous( labels = scales::percent, limits = c(0,1) ) +
+  scale_x_continuous( labels = scales::percent ) +
+  labs ( title = "Az ad\u00F3fizet\u0151k arányának a hatása a részvételre", 
+         subtitle = "Minél kevesebb ad\u00F3fizet\u0151 van a településen, annál kevesebben szavaznak", 
+         y = "Részvétel", 
+         x = "Ad\u00F3fizet\u0151k aránya a felnőtt népességben")
+```
+
+###Az iskolázottság hatása a részvételre a falvakban
+
+A második legnagyobb hatása az iskolázottságnak van. Minél több embernek van 8 általánosnál magasabb végzettsége, annál többen vettek részt a választáson. Mivel azonban a kistelepüléseket vizsgáljuk csak, ez a hatás nagyon csekély (de szignifikáns.)
+
+```{r iskolazottsag_lm, echo=FALSE, message=FALSE, warning=FALSE}
+
+ggplot(kistelepulesek_lm,
+       aes(iskolazottsag,
+           reszvetel_est))+
+  stat_summary(fun.data=mean_cl_normal) + 
+  geom_smooth(method='lm',formula=y~x) +
+  scale_y_continuous( labels = scales::percent, limits = c(0,1) ) +
+  scale_x_continuous( labels = scales::percent ) +
+  labs ( title = "Az iskolázottság szintjének a hatása a részvételre", 
+         subtitle = "Minél iskolázottabb emberek laknak egy településen, annál nagyobb arányban vesznek részt a szavazáson", 
+         y = "Részvétel", 
+         x = "Több mint 8 általánost végzett feln\u0151ttek aránya")
+```
+
+###A településméret hatása a részvételre a falvakban
+
+A legcsekélyebb hatása a népességszámnak van. Minnél nagyobb a település, annál kevesebben vettek részt a választáson a falusi mintában. Ez a kapcsolat azonban nagyon gyenge, bár szignifikáns. 
+
+```{r nepessegreszvetellm, echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(kistelepulesek,
+       aes(nepesseg_18p,                     reszvetel_est))+stat_summary(fun.data=mean_cl_normal) + 
+  geom_smooth(method='lm',formula=y~x) +
+  scale_y_continuous( labels = scales::percent, limits = c(0,1) ) +
+  scale_x_continuous( labels = scales::comma ) +
+  labs ( title = "A településméret hatása a részvételre", 
+         subtitle = "Minél kisebb a település, annál kevesebben szavaznak", 
+         y = "Részvétel", 
+         x = "Településméret")
+
+```
+
+##A Fidesz támogatottsága
+
+A Fidesz támogatottsága (és az ellenzék támogattsága) csak részben azonos dolgoktól függ, mint a részvétel.  
+
+* A Fideszre magasabb arányban szavaztak a kistelepüléseken az iskolázatlanok (ha elmentek szavazni). 
+* A településméretnél fontosabbnak bizonyult a kistelepülés Budapesttől való kilométerben mért távolság, és néhány helyi jellemző.  Az „elszigeteltség” egyik mutatója, hogy a Budapesttől mért távolság azonos kategóriában belül jobban számított, ha a Budapestre való eljutás lehetősége percben mérve is magasabb volt. 
+* A Fidesz támogatottsága Vas megyében jelentősen magasabb, Borsod-Abaúj-Zemplén megyében jelentősen alacsonyabb, és Baranya megyében kissé alacsonyabb volt.  
+
+### A Fidesz támogatottságának regressziós fája 
+
+```{r cart_fidesz,echo=FALSE, message=FALSE, warning=FALSE}
+require(rpart.plot)
+kistelepulesek <- kistelepulesek %>%
+  mutate ( baranya = as.factor(ifelse (megye == "BARANYA", 1,0))) %>%
+  mutate ( vas = as.factor(ifelse (megye == "VAS", 1,0))) %>%
+  mutate ( borsod = as.factor(ifelse ( grepl("BORSOD", megye), 1, 0))) %>%
+  mutate ( elidosodott = as.factor (ifelse ( idosek_rate > 0.28528, 1, 0))) 
+
+variable_fidesz <- c('baranya', 'vas', 'borsod', 
+                    'fidesz_rate', 
+                    'ervenytelen_rate', 'megye_ido_km', 
+                    'budapest_ido_km', 'megyeszekhely_km', 
+                    'budapest_km', 'megyeszekhely_min',
+                    'budapest_min', 'ujszulott_rate',
+                    'idosek_rate', 'nepesseg', 
+                    'vandorlas_rate', 'altisk_rate',
+                    'nepesseg_18p', 'adofizeto_rate')
+
+training.samples.fidesz <- kistelepulesek$reszvetel_est %>%
+  createDataPartition(p = 0.8, list = FALSE)
+train.data.fidesz  <- kistelepulesek[training.samples.fidesz, ]
+test.data.fidesz <- kistelepulesek[-training.samples.fidesz, ]
+
+set.seed(2018)
+model_fidesz <- train(
+  as.formula(paste0 ("fidesz_rate ~",  paste(variable_fidesz, collapse = "+"))), data = train.data.fidesz, method = "rpart",
+  trControl = trainControl("cv", number = 10),
+  tuneLength = 10
+)
+
+par(xpd = NA) # Avoid clipping the text in some device
+rpart.plot::prp(model_fidesz$finalModel,
+                yes.text = "igaz", 
+                no.text  = 'hamis') 
+#model_fidesz$finalModel
+```
+
+
+### A Fidesz támogatottsága lineáris regresszióval 
+
+Ismét felállítva a lineáris regressziós modellt a mások munkáival való összehasonlítás végett, annyit változtatunk, hogy az idősek arányát logaritmikus formában adjuk a modellhez.  Ez nagyjából azt jelenti, hogy a Fidesz támogatottságát a településen élő nagyszámú idős ember (vagy kis számú fiatal- és középkorú) nem lineárisan, hanem exponenciálisan növeli. Az ábrán egyébként látható, hogy ez nem egy igazán lineáris összefüggés.
+
+```{r fidesz_lm, echo=FALSE, warning=FALSE, message=FALSE}
+fidesz_lm <-lm ( fidesz_rate ~ nepesseg_18p + budapest_km + log(idosek_rate) +
+                      altisk_rate + vas + baranya + borsod, 
+                    data = kistelepulesek)
+summary(fidesz_lm)
+
+kistelepulsek <- kistelepulesek %>%
+  mutate (fidesz_pred = predict(fidesz_lm))
+```
+
+
+###A településméret hatása a Fidesz támogatottságára a falvakban
+
+Függetlenül attól, hogy hol van a település, minél nagyobb, annál kisebb a Fidesz, és nagyobb az ellenzék támogatottsága. 
+
+```{r nepesseg_lm, echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(kistelepulesek,
+       aes(nepesseg_18p,fidesz_rate))+
+  stat_summary(fun.data=mean_cl_normal) + 
+  geom_smooth(method='lm',formula=y~x) +
+  scale_y_continuous( labels = scales::percent, limits = c(0,1) ) +
+  scale_x_continuous( labels = scales::comma ) +
+  labs ( title = "A településméret hatása", 
+         subtitle = "Minél kisebb a település, annál többen szavaznak a Fideszre", 
+         y = "Fidesz szavazatok", 
+         x = "Nagykor\uFA (választ\u00F3) népesség nagysága")
+
+
+```
+
+###A Budapesttől való távolság hatása a Fidesz támogatottságára a falvakban
+
+Minél nagyobb a kistelepülés Budapesttől való távolsága, annál nagyobb a Fidesz támogatottsága, és annál kisebb az ellenzéké. 
+
+```{r budapestkm_lm, echo=FALSE, message=FALSE, warning=FALSE}
+
+ggplot(kistelepulesek,
+       aes(budapest_km,fidesz_rate))+
+  stat_summary(fun.data=mean_cl_normal) + 
+  geom_smooth(method='lm',formula=y~x) +
+  scale_y_continuous( labels = scales::percent, limits = c(0,1) ) +
+  scale_x_continuous( labels = scales::comma ) +
+  labs ( title = "A Budapestt\u0151l való távolság hatása", 
+         subtitle = "Minél messzebb megyünk Budapestt\u0151l, annál többen szavaznak a Fideszre", 
+         y = "Fidesz szavazatok", 
+         x = "Budapestt\u0151l való távolság, km")
+
+```
+
+###Az elöregedettség hatása a Fidesz támogatottságára a falvakban
+
+Minél elöregedettebb a kistelepülés, annál többen szavaznak a Fideszre, és kevesebben az ellenzékre.  A lineáris modellben logaritmikusan szerepel ez a változó, de a könnyebb vizuális értelmezhetőség miatt lineáris formában raktam az ábrára.
+
+```{r idosek_lm, echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(kistelepulesek,
+       aes(idosek_rate,fidesz_rate))+
+  stat_summary(fun.data=mean_cl_normal) + 
+  geom_smooth(method='lm',formula=y~x) +
+  geom_smooth(method='lm',formula=y~log(x)) + 
+  scale_y_continuous( labels = scales::percent, limits = c(0,1) ) +
+  scale_x_continuous( labels = scales::percent ) +
+  labs ( title = "Az elöregedettség hatása", 
+         subtitle = "Minél több az id\u0151s ember, annál többen szavaznak a Fideszre", 
+         y = "Fidesz szavazatok", 
+         x = "60 évnél id\u0151sebbek aránya a településen")
+
+
+```
+
+##Elszigetelődés 
+
+Az alábbiakban csak az "elszigetelődés" hatását mutatom be. Az elszigetelődés alatt azt értem, hogy Budapest és a megyeszékhely csak hosszú idő alatt, nagy költséggel érhető el, a településen kevés más ember él, akivel vitatkozni lehet, és magas a 60 felettiek aránya, akik már se iskolában, se munkahelyen nemigen találkoznak új információkkal, vitapartnerekkel. Ezeken a helyeken az emberek akár kétharmada is a Fideszre szavaz. 
+
+```{r elszig_cart,echo=FALSE, message=FALSE, warning=FALSE}
+training.samples.fidesz.szig <- kistelepulesek$reszvetel_est %>%
+  createDataPartition(p = 0.8, list = FALSE)
+train.data.fidesz.szig  <- kistelepulesek[training.samples.fidesz.szig, ]
+test.data.fidesz.szig <- kistelepulesek[-training.samples.fidesz.szig, ]
+
+
+variable_fidesz_szig <- c('baranya', 'vas', 'borsod',  
+                     'megye_ido_km', 
+                    'budapest_ido_km', 'megyeszekhely_km', 
+                    'budapest_km', 'megyeszekhely_min',
+                    'budapest_min', 
+                    'idosek_rate', 'nepesseg_18p')
+
+set.seed(2018)
+model_fidesz_szig <- train(
+  as.formula(paste0 ("fidesz_rate ~",  paste(variable_fidesz_szig, collapse = "+"))), 
+  data = train.data.fidesz.szig, 
+  method = "rpart",
+  trControl = trainControl("cv", number = 10),
+  tuneLength = 10
+)
+
+par(xpd = NA) # Avoid clipping the text in some device
+rpart.plot::prp(model_fidesz_szig$finalModel,
+                yes.text = "igaz", 
+                no.text  = 'hamis')
+text(model_fidesz_szig$finalModel, digits = 3)
+model_fidesz_szig$finalModel
+```
+```{r elszig_lm, echo=FALSE, message=FALSE, warning=FALSE}
+fidesz_lm_szig <-lm ( fidesz_rate ~ nepesseg_18p + budapest_min + megyeszekhely_min +
+                      + log(idosek_rate) +
+                      + vas + baranya + borsod, 
+                    data = kistelepulesek)
+summary(fidesz_lm_szig)
+```
+
+###A megyeszékhelytől való távolság
+
+Minél messzebb van egy település a megyeszékhelytől, annál többen szavaznak a Fideszre. Az utazási idő optimális esetre van megadva, ennél a tömegközelekdés általában lényegesen rosszabb elérést ad. 
+
+```{r megyeszekhely_lm, echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(kistelepulesek,
+       aes(megyeszekhely_min,fidesz_rate))+
+  stat_summary(fun.data=mean_cl_normal) + 
+  geom_smooth(method='lm',formula=y~x) + 
+  scale_y_continuous( labels = scales::percent, limits = c(0,1) ) +
+  scale_x_continuous( labels = scales::comma ) +
+  labs ( title = "A megyeszékhelyt\u0151l való távolság hatása", 
+         subtitle = "Minél messzebb van a megyeszékhely, annál többen szavaznak a Fideszre", 
+         y = "Fidesz szavazatok", 
+         x = "Megyeszékhely távolsága (utazási id\u0151 optimális esetben)")
+
+
+```
+
+
+##Konkluziók
+
+A Fidesz kistelepülési támogatottságát, és az ellenzék támogatottságának a hiányát nagymértékben meghatározza a szavazók földrajzi helyzete, a település elöregedettsége és mérete. Minél több a fiatal, aktív ember, minél közelebb van a főváros, annál nagyobb a vélemények és a szavazatok pluralitása. 
+
+Magyarország településszerkezete meglehetősen sajátságos, és természetesen a földrajzi lakóhely nagymértékben összefügg a szociológiai jellemzőkkel, hiszen minőségi munkahelyek elsősorban Budapesten, és néhány fejlett nagyvárosban, például Győrött, Kecskeméten, Budaörsön van nagy számban. 
+
+Ezzel együtt úgy gondolom, hogy mindez óvatosságra int a szociológiai determinációval kapcsolatban, és sokkal nagyobb figyelmet kellene adni az „elszigeteltség” értelmezésének, vagyis annak, hogy mennyi esélye van az embereknek eltérő nézetekkel, plurális hírforrásokkal találkozni.  Vagyis a szociológiai, gazdasági meghatározottság mellett fontos volna valahogyan a politikai aktivitást, a tájékozódás lehetőségét is vizsgálni. 
+
+A vizsgálatom csak az egy szavazókörös kistelepülésekre terjedt ki, aminek több oka van. Egyrészt ezeknek a településeknek a lakói meglehetősen homogén módon, nagy többséggel választották a Fideszt, és az ellenzéki pártok közül is legfeljebb a Jobbikot és az MSZP-t vették számításba. A nagy elemszámú minta, az aggregációs problémák kisebb mértéke, és az egyszerűbb választói magatartás ezeket a településeket jobban elemezhetővé tette.  Ugyanakkor a legtöbb szavazatot nem ezeken a kistelepüléseken adták le. A városok elemzése sokkal nagyobb munkát igényel
+
+## Az adatelőkészítő kód
+
+```{r adatelokeszites, eval=FALSE}
+require(tidyverse)
+tstat_1 <- readxl::read_excel("data-raw/Telepulesadatok_tidy.xls", 
+                            sheet = 1 )
+names (tstat_1)[2]= "telepuleskod"
+names ( tstat_1)[1] = "telep"
+
+tstat_2 <- readxl::read_excel("data-raw/kiegeszito_telepules_adat.xls", 
+                              sheet = 1 )
+names (tstat_2)[2]= "telepuleskod"
+adofizetok <- readxl::read_excel("data-raw/adofizetok_szama.xls", 
+                                 sheet = 1 )
+names (adofizetok)[2]= "telepuleskod"
+
+nepesseg <- readxl::read_excel(
+  "data-raw/allando_nepesseg_18_felett_2014_16_tidy.xls", 
+  sheet = 1 )
+names (nepesseg)[2]= "telepuleskod"
+names (nepesseg)[1] = "telep"
+
+tstat <- left_join (tstat_1, tstat_2, by = c("telep", "telepuleskod", "nepesseg")) %>%
+  left_join( ., adofizetok, by = c("telep", "telepuleskod")) %>%
+  left_join(., nepesseg, by = c("telep", "telepuleskod")) %>%
+  mutate ( adofizeto_rate = adofizetok / nepesseg_18p )
+
+
+szavazatok <- szavazatok_raw %>%
+  select ( megyeid, megye, telepid, telep, oevk, 
+           szavazokor, ervenyes, ervenytelen, orsz_fidesz, 
+           orsz_jobbik, 
+           orsz_lmp, orsz_mszp, orsz_dk,
+           orsz_egyutt, orsz_momentum, orsz_mkkp ) %>%
+  mutate ( fidesz_rate = orsz_fidesz / (ervenyes + ervenytelen), 
+           jobbik_rate = orsz_jobbik   / (ervenyes + ervenytelen),
+           mszp_rate  =  orsz_mszp  /  (ervenyes + ervenytelen),
+           lmp_rate    = orsz_lmp   / (ervenyes + ervenytelen), 
+           dk_rate  =    orsz_dk  / (ervenyes + ervenytelen), 
+           momentum_rate = orsz_momentum / (ervenyes + ervenytelen), 
+           mkkp_rate = orsz_mkkp /  (ervenyes + ervenytelen), 
+           egyutt_rate = orsz_egyutt /  (ervenyes + ervenytelen), 
+           ervenyelen_rate = ervenytelen / (ervenyes + ervenytelen)) %>%
+  mutate ( id = paste0(tolower(telep), "-", 
+                       tolower(as.character(szavazokor))))
+
+szavstat <- left_join ( szavazatok, tstat, by = "telep") %>%
+   add_count(telep)
+szavazatok_raw <- readxl::read_excel(path = "data-raw/2018-04-08--egyéni és listás voksok szavazókör szerint_stata_fv.xlsx")
+
+szavazatok <- szavazatok_raw %>%
+  select ( megyeid, megye, telepid, telep, oevk, 
+           szavazokor, ervenyes, ervenytelen, orsz_fidesz, 
+           orsz_jobbik, 
+           orsz_lmp, orsz_mszp, orsz_dk,
+           orsz_egyutt, orsz_momentum, orsz_mkkp ) %>%
+  mutate ( fidesz_rate = orsz_fidesz / (ervenyes + ervenytelen), 
+           jobbik_rate = orsz_jobbik   / (ervenyes + ervenytelen),
+           mszp_rate  =  orsz_mszp  /  (ervenyes + ervenytelen),
+           lmp_rate    = orsz_lmp   / (ervenyes + ervenytelen), 
+           dk_rate  =    orsz_dk  / (ervenyes + ervenytelen), 
+           momentum_rate = orsz_momentum / (ervenyes + ervenytelen), 
+           mkkp_rate = orsz_mkkp /  (ervenyes + ervenytelen), 
+           egyutt_rate = orsz_egyutt /  (ervenyes + ervenytelen), 
+           ervenytelen_rate = ervenytelen / (ervenyes + ervenytelen)) %>%
+  mutate ( id = paste0(tolower(telep), "-", 
+                       tolower(as.character(szavazokor))))
+
+szavstat <- left_join ( szavazatok, tstat, by = c("telep")) %>% 
+  mutate (reszvetel_est = (ervenyes + ervenytelen)/nepesseg_18p) %>%
+  mutate (jovedelem_fo = jovedelem / nepesseg ) %>%
+  mutate (lakas_fo = lakas / nepesseg) %>%
+   add_count(telep)
+
+saveRDS(szavstat, "data/szavstat.rds")
+write.csv(szavstat, "data/szavstat.csv")
+
+szavstat <- readRDS("data/szavstat.rds") %>%
+  select ( -megyeid, -telepid, -ervenytelen, -ervenyes, 
+           - starts_with("orsz_"), -id, -telepuleskod, 
+           -odavandorlas, -elvandorlas, -idosek, 
+           -lakas, -jovedelem, -adofizetok, -jovedelem_fo, 
+           -ujszulottek, -lakas_fo, -kabeltv, -kabeltv_rate) 
+
+kistelepulesek <- szavstat %>% filter ( n == 1) %>%
+  filter ( complete.cases(.))
+
+training.samples <- kistelepulesek$reszvetel_est %>%
+  createDataPartition(p = 0.8, list = FALSE)
+train.data  <- kistelepulesek[training.samples, ]
+test.data <- kistelepulesek[-training.samples, ]
+
+paste (names(kistelepulesek), collapse = "', '")
+
+variable_reszvetel <- c('megye', 'oevk',
+                    'ervenytelen_rate', 'megye_ido_km', 
+                    'budapest_ido_km', 'megyeszekhely_km', 
+                    'budapest_km', 'megyeszekhely_min',
+                    'budapest_min', 'ujszulott_rate',
+                    'idosek_rate', 'nepesseg', 
+                    'vandorlas_rate', 'altisk_rate',
+                    'nepesseg_18p', 'adofizeto_rate')
+
+kistelepulesek <- kistelepulesek %>%
+  mutate ( baranya = as.factor(ifelse (megye == "BARANYA", 1,0))) %>%
+  mutate ( vas = as.factor(ifelse (megye == "VAS", 1,0))) %>%
+  mutate ( borsod = as.factor(ifelse ( grepl("BORSOD", megye), 1, 0))) %>%
+  mutate ( elidosodott = as.factor (ifelse ( idosek_rate > 0.28528, 1, 0))) 
+
+variable_fidesz <- c('baranya', 'vas', 'borsod', 
+                    'fidesz_rate', 
+                    'ervenytelen_rate', 'megye_ido_km', 
+                    'budapest_ido_km', 'megyeszekhely_km', 
+                    'budapest_km', 'megyeszekhely_min',
+                    'budapest_min', 'ujszulott_rate',
+                    'idosek_rate', 'nepesseg', 
+                    'vandorlas_rate', 'altisk_rate',
+                    'nepesseg_18p', 'adofizeto_rate')
+
+training.samples.fidesz <- kistelepulesek$reszvetel_est %>%
+  createDataPartition(p = 0.8, list = FALSE)
+train.data.fidesz  <- kistelepulesek[training.samples.fidesz, ]
+test.data.fidesz <- kistelepulesek[-training.samples.fidesz, ]
+
+```

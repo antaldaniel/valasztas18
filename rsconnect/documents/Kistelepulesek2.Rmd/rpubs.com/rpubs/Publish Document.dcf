@@ -1,0 +1,10 @@
+name: Publish Document
+title:
+username:
+account: rpubs
+server: rpubs.com
+hostUrl: rpubs.com
+appId: https://api.rpubs.com/api/v1/document/382487/7b116c09c8174bb586f106f58ffd8210
+bundleId: https://api.rpubs.com/api/v1/document/382487/7b116c09c8174bb586f106f58ffd8210
+url: http://rpubs.com/antaldaniel/382487
+when: 1524516266.89249
