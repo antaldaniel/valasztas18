@@ -16,12 +16,29 @@ Teljes adatfájlok: [github.com/antaldaniel/valasztas18/](https://github.com/ant
 
 ```{r, adatelokeszites}
 require(tidyverse)
-tstat <- readxl::read_excel("data-raw/Telepulesadatok_tidy.xls", 
-                   sheet = 1 )
-names ( tstat)[2]= "telepuleskod"
-names ( tstat)[1] = "telep"
+tstat_1 <- readxl::read_excel("data-raw/Telepulesadatok_tidy.xls", 
+                            sheet = 1 )
+names (tstat_1)[2]= "telepuleskod"
+names ( tstat_1)[1] = "telep"
 
-szavazatok_raw <- readxl::read_excel(path = "data-raw/2018-04-08--egyéni és listás voksok szavazókör szerint_stata_fv.xlsx")
+tstat_2 <- readxl::read_excel("data-raw/kiegeszito_telepules_adat.xls", 
+                              sheet = 1 )
+names (tstat_2)[2]= "telepuleskod"
+adofizetok <- readxl::read_excel("data-raw/adofizetok_szama.xls", 
+                                 sheet = 1 )
+names (adofizetok)[2]= "telepuleskod"
+
+nepesseg <- readxl::read_excel(
+  "data-raw/allando_nepesseg_18_felett_2014_16_tidy.xls", 
+  sheet = 1 )
+names (nepesseg)[2]= "telepuleskod"
+names (nepesseg)[1] = "telep"
+
+tstat <- left_join (tstat_1, tstat_2, by = c("telep", "telepuleskod", "nepesseg")) %>%
+  left_join( ., adofizetok, by = c("telep", "telepuleskod")) %>%
+  left_join(., nepesseg, by = c("telep", "telepuleskod")) %>%
+  mutate ( adofizeto_rate = adofizetok / nepesseg_18p )
+
 
 szavazatok <- szavazatok_raw %>%
   select ( megyeid, megye, telepid, telep, oevk, 
@@ -63,8 +80,14 @@ szavazatok <- szavazatok_raw %>%
   mutate ( id = paste0(tolower(telep), "-", 
                        tolower(as.character(szavazokor))))
 
-szavstat <- left_join ( szavazatok, tstat, by = "telep") %>%
+szavstat <- left_join ( szavazatok, tstat, by = c("telep")) %>% 
+  mutate (reszvetel_est = (ervenyes + ervenytelen)/nepesseg_18p) %>%
+  mutate (jovedelem_fo = jovedelem / nepesseg ) %>%
+  mutate (lakas_fo = lakas / nepesseg) %>%
    add_count(telep)
+
+saveRDS(szavstat, "data/szavstat.rds")
+write.csv(szavstat, "data/szavstat.csv")
 ```
 
 ## Kistelepülések
@@ -79,7 +102,10 @@ A kistelepüléseken a legrosszabb arányt a Fidesz ott érte el, ahol a közép
 
 ```{r kistelepulesek}
 kistelepulesek <- szavstat %>%
-  filter ( n == 1 ) 
+  filter ( n == 1 ) %>%
+  mutate ( adofizeto_rate = ifelse ( adofizeto_rate > 0.6, 
+                                     NA, adofizeto_rate)) %>%
+  mutate ( adofizet_min = ifelse ( adofizeto_rate < 0.4, 1, 0))
 
 require(rpart)
 require(rpart.plot)
@@ -104,7 +130,10 @@ Az érvénytelen szavazatok is többnyire hasonló mintázatot vesznek fel, és 
 
 ```{r kistelepulesek2}
 kistelepulesek <- szavstat %>%
-  filter ( n == 1 ) 
+  filter ( n == 1 ) %>%
+  mutate ( adofizeto_rate = ifelse ( adofizeto_rate > 0.6, 
+                                     NA, adofizeto_rate)) %>%
+  mutate ( adofizet_min = ifelse ( adofizeto_rate < 0.4, 1, 0))
 
 require(rpart)
 require(rpart.plot)
@@ -116,8 +145,8 @@ kistelep.tree2 <- rpart(ervenytelen_rate ~ fidesz_rate + jobbik_rate +
                          megyeszekhely_min + budapest_min + 
                          ujszulott_rate + jovedelem_fo +
                          vandorlas_rate + 
-                         altisk, data = kistelepulesek,
-                       control = rpart.control(cp = 0.0001, minsplit = 500))
+                         altisk  +
+                          adofizeto_rate + as.factor(adofizet_min), data = kistelepulesek,                   control = rpart.control(cp = 0.0001, minsplit = 500))
 bestcp2 <- kistelep.tree2$cptable[which.min(kistelep.tree2$cptable[,"xerror"]),"CP"]
 kistelep.tree.pruned2 <- prune(kistelep.tree2, cp = bestcp2)
 plot(kistelep.tree.pruned2)
@@ -128,7 +157,10 @@ Végül egy érdekes vizualizáció a szavazatok megoszlásáról. A Fidesz ott 
 
 ```{r kistelepulesek3}
 kistelepulesek <- szavstat %>%
-  filter ( n == 1 ) 
+  filter ( n == 1 ) %>%
+  mutate ( adofizeto_rate = ifelse ( adofizeto_rate > 0.6, 
+                                     NA, adofizeto_rate)) %>%
+  mutate ( adofizet_min = ifelse ( adofizeto_rate < 0.4, 1, 0))
 
 require(rpart)
 require(rpart.plot)
@@ -145,3 +177,46 @@ plot(kistelep.tree.pruned3)
 text(kistelep.tree.pruned3, cex = 0.8, use.n = TRUE, xpd = TRUE)
 ```
 A következő lépés az lesz, hogy a nagyob településekre kiterjesztjük a modellt.
+
+
+##Nagyobb települések
+
+A nagyobb településeket is betéve a mintába csak a népességszám és az iskolázottság marad "fontos" változó a CART modellben.
+
+```{r telepulesek}
+telepulesek <- szavstat %>%
+  group_by (telep) %>%
+  summarize_if (is.numeric, sum, na.rm=TRUE ) %>%
+  filter ( telep != 'Budapest') %>%
+  mutate ( fidesz_rate = orsz_fidesz / (ervenyes + ervenytelen), 
+  jobbik_rate = orsz_jobbik   / (ervenyes + ervenytelen),
+  mszp_rate  =  orsz_mszp  /  (ervenyes + ervenytelen),
+  lmp_rate    = orsz_lmp   / (ervenyes + ervenytelen), 
+  dk_rate  =    orsz_dk  / (ervenyes + ervenytelen), 
+  momentum_rate = orsz_momentum / (ervenyes + ervenytelen), 
+  mkkp_rate = orsz_mkkp /  (ervenyes + ervenytelen), 
+  egyutt_rate = orsz_egyutt /  (ervenyes + ervenytelen), 
+  ervenyelen_rate = ervenytelen / (ervenyes + ervenytelen))  %>%
+  mutate  ( kabeltv_arany = kabeltv / nepesseg ) %>%
+  mutate  ( jovedelem_fo = jovedelem / nepesseg ) %>%
+  mutate ( ujszulott_rate = ujszulottek / nepesseg) %>%
+  mutate ( idosek_rate = idosek / nepesseg ) %>%
+  mutate ( budapest_min_avg = mean ( budapest_min, na.rm=TRUE)) %>%
+  mutate ( adofizeto_rate = ifelse ( adofizeto_rate > 0.6, 
+                                     NA, adofizeto_rate)) %>%
+  mutate ( adofizet_min = ifelse ( adofizeto_rate < 0.4, 1, 0))
+
+
+telep.tree <- rpart(fidesz_rate ~ nepesseg + kabeltv_arany + budapest_min_avg + 
+                         ujszulott_rate + idosek_rate + jovedelem_fo +
+                          adofizeto_rate + as.factor(adofizet_min) +
+                         altisk, data = telepulesek, control = rpart.control(cp = 0.0001, 
+                                                                                minsplit = 500))
+bestcp.telep <- telep.tree$cptable[which.min(telep.tree$cptable[,"xerror"]),"CP"]
+telep_tree_pruned <- prune(telep.tree, cp = bestcp)
+plot(telep_tree_pruned)
+text(telep_tree_pruned, cex = 0.8, use.n = TRUE, xpd = TRUE)
+
+
+```
+

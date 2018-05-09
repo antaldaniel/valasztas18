@@ -136,9 +136,9 @@ szavazatok &lt;- szavazatok_raw %&gt;%
            orsz_lmp, orsz_mszp, orsz_dk,
            orsz_egyutt, orsz_momentum, orsz_mkkp ) %&gt;%
   mutate ( id = paste0(tolower(telep), &quot;-&quot;, 
-                       tolower(as.character(szavazokor))))
-
-delegaltak &lt;- delegaltak_raw %&gt;%
+                       tolower(as.character(szavazokor))))</code></pre>
+<pre><code>## Warning: package 'bindrcpp' was built under R version 3.4.4</code></pre>
+<pre class="r"><code>delegaltak &lt;- delegaltak_raw %&gt;%
   filter ( as.character(valasztas_datum) == &quot;2018-04-08&quot; )  %&gt;%
   separate ( jelolocsoport, c(&quot;jelolo_code&quot;, &quot;jelolo&quot;), sep = &quot; - &quot;) %&gt;%
   mutate ( id = tolower(ID), 
